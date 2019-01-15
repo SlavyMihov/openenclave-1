@@ -3,37 +3,14 @@
 
 # create a binary for each testcase listed in ../tests.supported
 
+oeedl_file(../libcxx.edl enclave gen)
 
 include(${CMAKE_CURRENT_LIST_DIR}/../../../cmake/get_testcase_name.cmake)
 
-# helper lib to contain file needed by some tests
-add_library(libcxxtest-support
-    enc.cpp
-    fuzzing.cpp
-    memory_resource.cpp
-    )
-
-target_compile_options(libcxxtest-support PRIVATE
-    -Wno-error=attributes
-    -Wno-error=strict-overflow
-    -Wno-error=unused-local-typedefs
-    -Wno-error=unused-variable
-    -Wno-sign-conversion
-    )
-
-if (CMAKE_CXX_COMPILER_ID MATCHES GNU)
-    target_compile_options(libcxxtest-support PRIVATE
-      -Wno-error=maybe-uninitialized
-      -Wno-error=unused-but-set-variable
-      )
-endif ()
-
-target_link_libraries(libcxxtest-support PRIVATE oelibcxx oeenclave)
-target_link_libraries(libcxxtest-support INTERFACE -Wl,--undefined=Test)
-
 # helper function to create enclave binary
 function(add_libcxx_test_enc NAME CXXFILE)
-    add_enclave(TARGET libcxxtest-${NAME}_enc CXX SOURCES main.cpp)
+    add_enclave(TARGET libcxxtest-${NAME}_enc CXX SOURCES
+        main.cpp enc.cpp fuzzing.cpp memory_resource.cpp ${gen})
 
     target_include_directories(libcxxtest-${NAME}_enc PRIVATE
         ..
@@ -41,6 +18,7 @@ function(add_libcxx_test_enc NAME CXXFILE)
         ${PROJECT_SOURCE_DIR}/3rdparty/libcxx/libcxx/test/support
         ${PROJECT_SOURCE_DIR}/3rdparty/libcxx/libcxx/fuzzing
         ${PROJECT_SOURCE_DIR}/3rdparty/libcxx/libcxx/src/filesystem
+        ${CMAKE_CURRENT_BINARY_DIR}
         )
 
       target_compile_options(libcxxtest-${NAME}_enc PRIVATE
@@ -62,7 +40,7 @@ function(add_libcxx_test_enc NAME CXXFILE)
     endif()
 
     target_compile_definitions(libcxxtest-${NAME}_enc PRIVATE -DWITH_MAIN -D__TEST__="${CXXFILE}")
-    target_link_libraries(libcxxtest-${NAME}_enc libcxxtest-support)
+    target_link_libraries(libcxxtest-${NAME}_enc oelibcxx oeenclave)
 endfunction(add_libcxx_test_enc)
 
 # iterate over the supported tests and create a binary for each.
